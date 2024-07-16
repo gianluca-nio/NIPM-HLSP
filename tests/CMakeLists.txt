@@ -15,3 +15,4 @@ macro(addUnitTest name)
 endmacro(addUnitTest)
 
 addUnitTest(test1 test1.cpp)
+addUnitTest(test2 test2.cpp)
