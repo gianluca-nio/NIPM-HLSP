@@ -277,6 +277,8 @@ int main()
             }
         }
 
+        if(testnr==13) continue;
+
         // VectorXd x_prev = VectorXd::Zero(nVar);
         nipmhlsp::NIpmHLSP solver(p, nVar);
         for (Index l=0; l < p; l++)

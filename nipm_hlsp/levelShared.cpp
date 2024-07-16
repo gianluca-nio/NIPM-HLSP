@@ -215,21 +215,41 @@ namespace nipmhlsp
     {
         // Nullspace calculation of active constraints and projection of lower priority matrices into it
         // for safety here
-        permLvl[l].resize(hp->nr);
+        permLvl[l].resize(hp->nr, hp->nr);
         permLvl[l].setIdentity();
         if (m_act_p[l + 1] - m_act_p[l] > 0)
         {
             // QR decomposition of A_actN; theoretically, it is already available from the Newton's method but with an error depending on the magnitude of the KKT conditions when the Newton's method is stopped
             mat mat2save = A_actN.block(m_act_p[l], hp->n - hp->nr, m_act_p[l + 1] - m_act_p[l], hp->nr);
             Eigen::Ref<mat> mat2dec = A_actN.block(m_act_p[l], hp->n - hp->nr, m_act_p[l + 1] - m_act_p[l], hp->nr);
-            Eigen::ColPivHouseholderQR<Eigen::Ref<mat> > qr(mat2dec);
+            Eigen::CompleteOrthogonalDecomposition<mat > qr(mat2dec);
+            qr.setThreshold(1e-3);
 
             // save the data for dual computation
-            permLvl[l] = qr.colsPermutation();
+            permLvl[l] = qr.colsPermutation() * qr.matrixZ().transpose();
             rank_p[l] = qr.rank();
             hCoeff[l] = qr.hCoeffs();
+            mat2dec = qr.matrixQTZ();
+            mat2dec.rightCols(hp->nr - rank_p[l]).setZero();
 
 #if SAFEGUARD
+            mat Q = householderSequence(A_actN.block(m_act_p[l], hp->n - hp->nr, m_act_p[l + 1] - m_act_p[l], hp->nr), hCoeff[l]);
+            mat T = Eigen::MatrixXd::Zero(m_act_p[l + 1] - m_act_p[l], hp->nr);
+            T.topLeftCorner(rank_p[l], rank_p[l]).triangularView<Eigen::Upper>() = A_actN.block(m_act_p[l], hp->n - hp->nr, m_act_p[l + 1] - m_act_p[l], hp->nr).topLeftCorner(rank_p[l], rank_p[l]).triangularView<Eigen::Upper>();
+            mat deltaCOD = mat2save - Q*T*permLvl[l].transpose();
+            /*
+            std::cout << "A = [\n" << mat2save << "\n]" << std::endl;
+            std::cout << "Q = [\n" << Q << "\n]" << std::endl;
+            std::cout << "T = [\n" << T << "\n]" << std::endl;
+            std::cout << "Z = [\n" << permLvl[l] << "\n]" << std::endl;
+            std::cout << "thr = " << qr.threshold() << std::endl;
+            */
+            if ((deltaCOD).norm() > 1e-12)
+            {
+                cout << "lvlShared::project: COD corrupted with error norm " << (deltaCOD).norm() << endl;
+                throw;
+            }
+
             // nullspace test
             mat2save.rightCols(hp->nr).applyOnTheRight(permLvl[l]);
             mat2dec.topLeftCorner(rank_p[l], rank_p[l])

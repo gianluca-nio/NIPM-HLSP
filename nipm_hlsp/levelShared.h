@@ -56,7 +56,7 @@ namespace nipmhlsp
         mat Lambda_act;
 
         std::vector<vec> hCoeff;
-        std::vector<Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> > permLvl;
+        std::vector<mat> permLvl;
 
         options opt;
     };
